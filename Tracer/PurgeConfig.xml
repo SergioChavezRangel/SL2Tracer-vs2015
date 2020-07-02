@@ -1,0 +1,13 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>
+<config>
+
+  <!--Days older-->
+  <keepLogs value="10"/>
+  <!--Minutes After Midnight-->
+  <time4Clean value="420"/>
+  <!--KiloBytes-->
+  <maxFileSize value="10000"/>
+  <!--Max Num of old files-->
+  <maxFiles value="20"/>
+
+</config>
