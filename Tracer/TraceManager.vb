@@ -5,147 +5,187 @@ Imports System.Xml
 Namespace automation.level2
 
     Public Class TraceManager
-        Dim WithEvents timMinute As System.Timers.Timer
-        Private Application As String = "AppNameNotSet"
-        Dim clean As Boolean = False
-        Dim Config As XmlDocument
+        Private WithEvents timMinute As Timers.Timer
 
-        ' Purger Var Names
-        'Dim traceLogger As Tracer.AHMSA.BOFyCC.TraceManager
-        Dim keepLogs As Int16
+        Private clean As Boolean = False
+        Private Config As XmlDocument
 
-        Dim List As XmlNodeList
-        Dim log As String
-        Private LogRowHeader As String
-        Private LogTimeFormat As String
-        Dim maxFiles As Int16
-        Dim maxFileSize As Long
-        Dim Node As XmlNode
-        Private Path As String = "C:\"
-        Dim purge As Boolean = False
-        Dim time4Clean As Int16
-        Private TraceLevel As Int16 = 1
+        Private List As XmlNodeList
+        Private log As String
+        Private Node As XmlNode
+        Private purge As Boolean = False
 
-        Public Sub New(ByVal sApplication As String, ByVal sPath As String, ByVal isMainTracer As Boolean, ByVal iTraceLevel As Int16)
+        Private mMainTracer As Boolean = False
+        Private mApplication As String = AppDomain.CurrentDomain.FriendlyName
+        Private mTraceLevel As TraceLevels = 15
+        Private mPath As String = AppDomain.CurrentDomain.BaseDirectory
+        Private mHeader As String = ""
+        Private mTimeFormat As String = "yyyy-MM-dd HH:mm:ss"
+        Private mTimeCleanup As Int16 = 420
+        Private mMaxFiles As Int16 = 5
+        Private mMaxFileSize As Long = (1024 * 1024)
+        Private mMaxDaysKeepingFiles As Int16 = 7
+
+#Region "Public Properties"
+        Public Property MainTracer() As Boolean
+            Get
+                Return mMainTracer
+            End Get
+            Set(ByVal value As Boolean)
+                mMainTracer = value
+            End Set
+        End Property
+        Public Property Application() As String
+            Get
+                Return mApplication
+            End Get
+            Set(ByVal value As String)
+                mApplication = value
+            End Set
+        End Property
+        Public Property TraceLevel() As TraceLevels
+            Get
+                Return mTraceLevel
+            End Get
+            Set(ByVal value As TraceLevels)
+                mTraceLevel = value
+            End Set
+        End Property
+        Public Property Path() As String
+            Get
+                Return mPath
+            End Get
+            Set(ByVal value As String)
+                mPath = value
+            End Set
+        End Property
+        Public Property Header() As String
+            Get
+                Return mHeader
+            End Get
+            Set(ByVal value As String)
+                mHeader = value
+            End Set
+        End Property
+        Public Property TimeFormat() As String
+            Get
+                Return mTimeFormat
+            End Get
+            Set(ByVal value As String)
+                mTimeFormat = value
+            End Set
+        End Property
+        Public Property TimeCleanup() As Int16
+            Get
+                Return mTimeCleanup
+            End Get
+            Set(ByVal value As Int16)
+                mTimeCleanup = value
+            End Set
+        End Property
+        Public Property MaxFiles() As Int16
+            Get
+                Return mMaxFiles
+            End Get
+            Set(ByVal value As Int16)
+                mMaxFiles = value
+            End Set
+        End Property
+        Public Property MaxFileSize() As Long
+            Get
+                Return mMaxFileSize
+            End Get
+            Set(ByVal value As Long)
+                mMaxFileSize = value
+            End Set
+        End Property
+        Public Property MaxDaysKeepingFiles() As Int16
+            Get
+                Return mMaxDaysKeepingFiles
+            End Get
+            Set(ByVal value As Int16)
+                mMaxDaysKeepingFiles = value
+            End Set
+        End Property
+#End Region
+
+        Enum TraceLevels
+            CRITICAL = 50
+            ERROR_EXCEPTION = 40
+            WARNING = 30
+            INFO = 20
+            NOTSET = 15
+            DEBUG = 10
+            VERBOSE = 0
+        End Enum
+
+        Public Sub CRITICAL(ByVal msge As String)
+            writeLog(msge, TraceLevels.CRITICAL)
+        End Sub
+
+        Public Sub ERROR_EXCEPTION(ByVal msge As String)
+            writeLog(msge, TraceLevels.ERROR_EXCEPTION)
+        End Sub
+
+        Public Sub WARNING(ByVal msge As String)
+            writeLog(msge, TraceLevels.WARNING)
+        End Sub
+
+        Public Sub INFO(ByVal msge As String)
+            writeLog(msge, TraceLevels.INFO)
+        End Sub
+
+        Public Sub DEBUG(ByVal msge As String)
+            writeLog(msge, TraceLevels.DEBUG)
+        End Sub
+
+        Public Sub VERBOSE(ByVal msge As String)
+            writeLog(msge, TraceLevels.VERBOSE)
+        End Sub
+
+        Public Sub New(ByVal sApplication As String, ByVal sPath As String, ByVal isMainTracer As Boolean, ByVal iTraceLevel As TraceLevels)
             MyBase.New()
-            LogTimeFormat = "dd-MM-yyyy HH:mm:ss "
-            LogRowHeader = ""
-            writeLog(">>>>>>>>> " + MethodInfo.GetCurrentMethod().ToString(), 2)
+            writeLog(">>>>>>>>> " + MethodInfo.GetCurrentMethod().ToString(), TraceLevels.VERBOSE)
             'System.Diagnostics.EventLog.WriteEntry(Application, "Instance Tracer")
-            Application = sApplication
-            Path = sPath
-            TraceLevel = iTraceLevel
-            If isMainTracer Then
-                writeLog("I", " 'Tracer' Started", 1)
-                writeLog("    Path '" & Path & "'", 1)
-                writeLog("    File '" & Application & "'", 1)
-                writeLog("I", " 'Tracer' Started OK", 1)
-                PurgerStart(sApplication, sPath)
-            End If
+
+            newLogger(sApplication, sPath, isMainTracer, iTraceLevel, "")
 
         End Sub
 
-        Public Sub New(ByVal sApplication As String, ByVal sPath As String, ByVal isMainTracer As Boolean, ByVal Header As String, ByVal iTraceLevel As Int16)
+        Public Sub New(ByVal sApplication As String, ByVal sPath As String, ByVal isMainTracer As Boolean, ByVal Header As String, ByVal iTraceLevel As TraceLevels)
             MyBase.New()
-            LogRowHeader = Header
-            writeLog(">>>>>>>>> " + MethodInfo.GetCurrentMethod().ToString(), 2)
-            'System.Diagnostics.EventLog.WriteEntry(Application, "Instance Tracer")
-            Application = sApplication
-            Path = sPath
-            TraceLevel = iTraceLevel
-            If isMainTracer Then
-                writeLog("I", " 'Tracer' Started", 1)
-                writeLog("    Path '" & Path & "'", 1)
-                writeLog("    File '" & Application & "'", 1)
-                writeLog("I", " 'Tracer' Started OK", 1)
-                PurgerStart(sApplication, sPath)
-            End If
 
+            writeLog(">>>>>>>>> " + MethodInfo.GetCurrentMethod().ToString(), TraceLevels.VERBOSE)
+            'System.Diagnostics.EventLog.WriteEntry(Application, "Instance Tracer")
+
+            newLogger(sApplication, sPath, isMainTracer, iTraceLevel, Header)
+
+        End Sub
+
+        Public Sub newLogger(ByVal sApplication As String, ByVal sPath As String, ByVal isMainTracer As Boolean, ByVal iTraceLevel As TraceLevels, ByVal Header As String)
+            mHeader = Header
+            mApplication = sApplication
+            mPath = sPath
+            TraceLevel = iTraceLevel
+            MainTracer = isMainTracer
+            If MainTracer Then
+                writeLog("'Tracer' Starting", TraceLevels.INFO)
+                writeLog("    Path '" & mPath & "'", TraceLevels.INFO)
+                writeLog("    File '" & mApplication & "'", TraceLevels.INFO)
+                writeLog("'Tracer' Started OK", TraceLevels.INFO)
+                PurgerStart(mApplication, mPath)
+            End If
         End Sub
 
         Public Sub New()
             MyBase.New()
+            newLogger(mApplication, mPath, MainTracer, mTraceLevel, mHeader)
         End Sub
 
-        Public Sub checkMaxFiles(ByVal maxFiles As Int16)
-            writeLog(">>>>>>>>> " + MethodInfo.GetCurrentMethod().ToString(), 2)
-            Try
-                Dim fileNames() As String
-                fileNames = Directory.GetFiles(Path, Application & ".Tracer *.txt")
 
-                Dim orderedFiles = New System.IO.DirectoryInfo(Path).GetFiles(Application & ".Tracer *.txt").OrderBy(Function(x) x.LastWriteTime)
-                For Each f As System.IO.FileInfo In orderedFiles
-                    Console.WriteLine(String.Format("{0,-15} {1,12}", f.Name, f.CreationTime.ToString))
-                Next
 
-                Dim FilesFound As Int16
-                FilesFound = orderedFiles.Count
-                If FilesFound > maxFiles Then
-                    Dim FilesToDelete As Int16
-                    FilesToDelete = (FilesFound - maxFiles)
-                    writeLog("I", "'Purger' Deleting " & (FilesToDelete + 1) & " Files, MaxFiles Full", 1)
-                    For i = 0 To FilesToDelete
-                        My.Computer.FileSystem.DeleteFile(orderedFiles(i).FullName)
-                        log = "File deleted-> " & orderedFiles(i).Name
-                        writeLog("I", log, 1)
-                    Next
-                End If
-            Catch ex As Exception
-                log = "Something was wrong MaxFiles Full -> " & ex.Message.ToString
-                writeLog("E", log, 1)
-            End Try
-        End Sub
-
-        Public Sub checkMaxSize(ByVal maxfileSize As Long)
-            writeLog(">>>>>>>>> " + MethodInfo.GetCurrentMethod().ToString(), 2)
-            Try
-                If File.Exists(Path & Application & ".Tracer.txt") Then
-                    Dim fileInfo As FileInfo
-                    fileInfo = My.Computer.FileSystem.GetFileInfo(Path & Application & ".Tracer.txt")
-                    Dim x As Long
-                    x = fileInfo.Length
-                    x = x / 1024
-                    If x > maxfileSize Then
-                        writeLog("I", "'Purger' Change File, MaxSize Full", 1)
-                        renameFile()
-                    End If
-                End If
-            Catch ex As Exception
-                writeLog("E", "'Purger' Change File Error -> '" & ex.Message & "'", 1)
-            End Try
-        End Sub
-
-        Public Sub cleanFiles(ByVal keepHistory As Int16)
-            writeLog(">>>>>>>>> " + MethodInfo.GetCurrentMethod().ToString(), 2)
-            log = "LogFileCleanup-> " & Path & Application & ".Tracer.txt"
-            writeLog("I", log, 1)
-            Try
-                Dim fileNames As New Collection
-                For Each file As String In Directory.GetFiles(Path, Application & ".Tracer *.txt") 'My.Application.Info.DirectoryPath.ToString, Application & ".Tracer *.txt")
-                    log = "OldLogFiles-> " & file
-                    writeLog("I", log, 1)
-                    fileNames.Add(file.ToString)
-                Next
-                For Each fileName As String In fileNames
-                    Dim info As New FileInfo(fileName)
-                    Dim infoDate As Date
-                    infoDate = DateAndTime.Now
-                    Dim days As Int32 = 0
-                    days = DateDiff(DateInterval.Day, info.LastWriteTime, DateAndTime.Now)
-                    If days > keepHistory Then
-                        My.Computer.FileSystem.DeleteFile(fileName)
-                        log = "File deleted-> " & fileName.Substring(fileName.LastIndexOf("\") + 1)
-                        writeLog("I", log, 1)
-                    End If
-                Next
-            Catch ex As Exception
-                log = "Can't delete File-> " & ex.Message.ToString
-                writeLog("E", log, 1)
-            End Try
-        End Sub
-
-        Public Sub logDictionary(ByVal d2Log As Dictionary(Of Object, Object), ByVal iTraceLevel As Int16)
-            writeLog(">>>>>>>>> " + MethodInfo.GetCurrentMethod().ToString(), 12)
+        Private Sub logDictionary(ByVal d2Log As Dictionary(Of Object, Object), ByVal iTraceLevel As Int16)
+            writeLog(">>>>>>>>> " + MethodInfo.GetCurrentMethod().ToString(), TraceLevels.VERBOSE)
             If iTraceLevel <= TraceLevel Then
                 Try
                     For Each kvp As KeyValuePair(Of Object, Object) In d2Log
@@ -169,7 +209,7 @@ Namespace automation.level2
             End If
         End Sub
 
-        Public Sub logDictionary(ByVal d2Log As Dictionary(Of String, Hashtable), ByVal iTraceLevel As Int16)
+        Private Sub logDictionary(ByVal d2Log As Dictionary(Of String, Hashtable), ByVal iTraceLevel As Int16)
             writeLog(">>>>>>>>> " + MethodInfo.GetCurrentMethod().ToString(), 12)
             If iTraceLevel <= TraceLevel Then
                 Try
@@ -184,7 +224,7 @@ Namespace automation.level2
             End If
         End Sub
 
-        Public Sub logHT(ByVal ht2Log As Hashtable, ByVal bHTrace As Boolean, ByVal iTraceLevel As Int16)
+        Private Sub logHT(ByVal ht2Log As Hashtable, ByVal bHTrace As Boolean, ByVal iTraceLevel As Int16)
             writeLog(">>>>>>>>> " + MethodInfo.GetCurrentMethod().ToString(), 12)
             If iTraceLevel <= TraceLevel Then
                 Try
@@ -205,7 +245,7 @@ Namespace automation.level2
             End If
         End Sub
 
-        Public Sub logHT(ByVal ht2Log As Hashtable, ByVal iTraceLevel As Int16)
+        Private Sub logHT(ByVal ht2Log As Hashtable, ByVal iTraceLevel As Int16)
             writeLog(">>>>>>>>> " + MethodInfo.GetCurrentMethod().ToString(), 12)
             If iTraceLevel <= TraceLevel Then
                 Try
@@ -218,7 +258,7 @@ Namespace automation.level2
             End If
         End Sub
 
-        Public Sub logHT(ByVal ht2Log As Hashtable, ByVal sIndent As String, ByVal iTraceLevel As Int16)
+        Private Sub logHT(ByVal ht2Log As Hashtable, ByVal sIndent As String, ByVal iTraceLevel As Int16)
             writeLog(">>>>>>>>> " + MethodInfo.GetCurrentMethod().ToString(), 12)
             If iTraceLevel <= TraceLevel Then
                 Try
@@ -234,112 +274,94 @@ Namespace automation.level2
             End If
         End Sub
 
-        Public Sub renameFile()
-            writeLog(">>>>>>>>> " + MethodInfo.GetCurrentMethod().ToString(), 2)
-            Dim siNo As Boolean = False
-            log = "LogFile-> " & Path & Application & ".Tracer.txt"
-            writeLog("I", log, 1)
-            Try
-                If File.Exists(Path & Application & ".Tracer.txt") Then
-                    siNo = True
-                    writeLog("I", "LogFile Already Exist", 1)
-                Else
-                    writeLog("I", "LogFile Not Found", 1)
-                End If
-                If siNo Then
-                    My.Computer.FileSystem.RenameFile(Path & Application & ".Tracer.txt", Application & ".Tracer" & DateAndTime.Now.ToString(" ddMMyyyy HHmmss") & ".txt")
-                    log = "OldLogFile-> " & Application & ".Tracer" & DateAndTime.Now.ToString(" ddMMyyyy HHmmss") & ".txt"
-                    writeLog("I", log, 1)
-                    createFile()
-                Else
-                    log = "Can't rename File "
-                    writeLog("E", log, 1)
-                End If
-            Catch ex As Exception
-                log = "Can't rename File " & ex.Message
-                writeLog("E", log, 1)
-            End Try
-        End Sub
+        'Private Sub writeLog(ByVal chType As String, ByVal log As String, ByVal iTraceLevel As TraceLevels)
+        '    'writeLog(MethodInfo.GetCurrentMethod().ToString(), 2)
+        '    If iTraceLevel <= TraceLevel Then
+        '        Dim msg As String
+        '        msg = mApplication & " " & chType & ": " & log
+        '        'Dim fecha As String = System.DateTime.Now.ToString(LogHeader)
+        '        Try
+        '            Dim fileName As String = mPath & mApplication & ".Tracer.txt"
+        '            Dim writer As StreamWriter = File.AppendText(fileName)
+        '            writer.WriteLine(System.DateTime.Now.ToString(mTimeFormat) & mHeader & msg)
+        '            writer.Close()
+        '        Catch ex As Exception
+        '            'Do Nothing
+        '        End Try
+        '    End If
+        'End Sub
 
-        Public Sub writeLog(ByVal chType As String, ByVal log As String, ByVal iTraceLevel As Int16)
-            'writeLog(MethodInfo.GetCurrentMethod().ToString(), 2)
-            If iTraceLevel <= TraceLevel Then
+        Private Sub writeLog(ByVal log As String, ByVal iTraceLevel As TraceLevels)
+            If iTraceLevel >= TraceLevel Then
                 Dim msg As String
-                msg = Application & " " & chType & ": " & log
+                If mHeader.Length > 0 Then
+                    msg = String.Format("{0} [{2}] [{1}].[{4}] {3}", DateTime.Now.ToString(mTimeFormat), mApplication, iTraceLevel.ToString(), log, mHeader)
+                Else
+                    msg = String.Format("{0} [{2}] [{1}] {3}", DateTime.Now.ToString(mTimeFormat), mApplication, iTraceLevel.ToString(), log)
+                End If
                 'Dim fecha As String = System.DateTime.Now.ToString(LogHeader)
                 Try
-                    Dim fileName As String = Path & Application & ".Tracer.txt"
-                    Dim writer As StreamWriter = File.AppendText(fileName)
-                    writer.WriteLine(System.DateTime.Now.ToString(LogTimeFormat) & LogRowHeader & msg)
-                    writer.Close()
-                Catch ex As Exception
-                    'Do Nothing
-                End Try
-            End If
+                        Dim fileName As String = String.Format("{0}{1}.Tracer.txt", mPath, mApplication)
+                        Dim writer As StreamWriter = File.AppendText(fileName)
+                        writer.WriteLine(msg)
+                        writer.Close()
+                    Catch ex As Exception
+                        'Do Nothing
+                    End Try
+                End If
         End Sub
 
-        Public Sub writeLog(ByVal log As String, ByVal iTraceLevel As Int16)
-            If iTraceLevel <= TraceLevel Then
-                Dim msg As String
-                msg = Application & " " & log
-                'Dim fecha As String = System.DateTime.Now.ToString(LogHeader)
-                Try
-                    Dim fileName As String = Path & Application & ".Tracer.txt"
-                    Dim writer As StreamWriter = File.AppendText(fileName)
-                    writer.WriteLine(System.DateTime.Now.ToString(LogTimeFormat) & LogRowHeader & msg)
-                    writer.Close()
-                Catch ex As Exception
-                    'Do Nothing
-                End Try
-            End If
-        End Sub
-
+#Region "Purge"
         Private Sub createFile()
             writeLog(">>>>>>>>> " + MethodInfo.GetCurrentMethod().ToString(), 2)
             log = "I: File Log Restarted"
-            writeLog(log, 1)
+            writeLog(log, TraceLevels.INFO)
             log = "I: Process running Since " & Process.GetCurrentProcess.StartTime
-            writeLog(log, 1)
+            writeLog(log, TraceLevels.INFO)
 
         End Sub
 
         Private Sub PurgerStart(ByVal sApplication As String, ByVal sPath As String) 'ByVal maxDays As Int16, ByVal timeClean As Int16, ByVal maxSize As Int16)
 
             writeLog(">>>>>>>>> " + MethodInfo.GetCurrentMethod().ToString(), 2)
-            Application = sApplication
-            Path = sPath
+            mApplication = sApplication
+            mPath = sPath
 
-            Config = New XmlDocument()
-            Config.Load(System.AppDomain.CurrentDomain.BaseDirectory() & "PurgeConfig.xml")
-            'List = Config.SelectNodes("/config/tags/tag")
-            keepLogs = CInt(Config.SelectSingleNode("/config/keepLogs").Attributes.GetNamedItem("value").Value)
-            time4Clean = CInt(Config.SelectSingleNode("/config/time4Clean").Attributes.GetNamedItem("value").Value)
-            maxFileSize = CLng(Config.SelectSingleNode("/config/maxFileSize").Attributes.GetNamedItem("value").Value)
-            maxFiles = CInt(Config.SelectSingleNode("/config/maxFiles").Attributes.GetNamedItem("value").Value)
+            Try
+                Config = New XmlDocument()
+                Config.Load(System.AppDomain.CurrentDomain.BaseDirectory() & "PurgeConfig.xml")
+                'List = Config.SelectNodes("/config/tags/tag")
+                mMaxDaysKeepingFiles = CInt(Config.SelectSingleNode("/config/keepLogs").Attributes.GetNamedItem("value").Value)
+                mTimeCleanup = CInt(Config.SelectSingleNode("/config/time4Clean").Attributes.GetNamedItem("value").Value)
+                mMaxFileSize = CLng(Config.SelectSingleNode("/config/maxFileSize").Attributes.GetNamedItem("value").Value)
+                mMaxFiles = CInt(Config.SelectSingleNode("/config/maxFiles").Attributes.GetNamedItem("value").Value)
+            Catch ex As Exception
+                writeLog("Default Values used", TraceLevels.ERROR_EXCEPTION)
+            End Try
 
-            writeLog("I", "Object " & sApplication & " Loading.......", 1)
+            writeLog("Object " & sApplication & " Loading.......", 1)
 
-            writeLog("I", "'Purger' Started", 1)
-            writeLog("    Path '" & Path & "'", 1)
-            writeLog("    File '" & Application & "'", 1)
-            writeLog("    Max Days for Old Files -> " & keepLogs.ToString, 1)
-            writeLog("    Max Size for Files Kb  -> " & maxFileSize.ToString, 1)
-            writeLog("    Max Files              -> " & maxFiles.ToString, 1)
+            writeLog("'Purger' Started", 1)
+            writeLog("    Path '" & mPath & "'", 1)
+            writeLog("    File '" & mApplication & "'", 1)
+            writeLog("    Max Days for Old Files -> " & mMaxDaysKeepingFiles.ToString, 1)
+            writeLog("    Max Size for Files Kb  -> " & mMaxFileSize.ToString, 1)
+            writeLog("    Max Files              -> " & mMaxFiles.ToString, 1)
 
             Dim mins As Long
             Dim hrs As Long
-            hrs = Math.DivRem(time4Clean, 60, mins)
+            hrs = Math.DivRem(mTimeCleanup, 60, mins)
 
             writeLog("    Time for Cleanup       -> " & String.Format("{0:00}:{1:00}", hrs, mins), 1)
-            writeLog("I", "'Purger' Configure OK", 1)
+            writeLog("'Purger' Configure OK", 1)
 
-            timMinute = New System.Timers.Timer(60000)
+            timMinute = New Timers.Timer(60000)
             timMinute.Enabled = True
             timMinute.Start()
 
-            checkMaxSize(maxFileSize)
-            checkMaxFiles(maxFiles)
-            cleanFiles(keepLogs)
+            checkMaxSize(mMaxFileSize)
+            checkMaxFiles(mMaxFiles)
+            cleanFiles(mMaxDaysKeepingFiles)
         End Sub
 
         Private Sub timMinute_Tick(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles timMinute.Elapsed
@@ -351,25 +373,130 @@ Namespace automation.level2
             Dim spanMins As Integer
             spanMins = (hr * 60) + min
             Dim time4CleanEnd As Integer
-            time4CleanEnd = time4Clean + 10
+            time4CleanEnd = mTimeCleanup + 10
 
-            If (spanMins >= time4Clean) And (spanMins <= time4CleanEnd) And (clean = False) Then
+            If (spanMins >= mTimeCleanup) And (spanMins <= time4CleanEnd) And (clean = False) Then
                 clean = True
                 renameFile()
-                cleanFiles(keepLogs)
-            ElseIf (spanMins < time4Clean) Or (spanMins > time4CleanEnd) Then
+                cleanFiles(mMaxDaysKeepingFiles)
+            ElseIf (spanMins < mTimeCleanup) Or (spanMins > time4CleanEnd) Then
                 clean = False
             End If
 
             If (min < 2) And (purge = False) Then
                 purge = True
-                checkMaxSize(maxFileSize)
-                checkMaxFiles(maxFiles)
+                checkMaxSize(mMaxFileSize)
+                checkMaxFiles(mMaxFiles)
             ElseIf (min > 1) Then
                 purge = False
             End If
 
         End Sub
+
+        Private Sub renameFile()
+            writeLog(">>>>>>>>> " + MethodInfo.GetCurrentMethod().ToString(), 2)
+            Dim siNo As Boolean = False
+            log = "LogFile-> " & mPath & mApplication & ".Tracer.txt"
+            writeLog(log, TraceLevels.INFO)
+            Try
+                If File.Exists(mPath & mApplication & ".Tracer.txt") Then
+                    siNo = True
+                    writeLog("LogFile Already Exist", 1)
+                Else
+                    writeLog("LogFile Not Found", 1)
+                End If
+                If siNo Then
+                    My.Computer.FileSystem.RenameFile(mPath & mApplication & ".Tracer.txt", mApplication & ".Tracer" & DateAndTime.Now.ToString(" ddMMyyyy HHmmss") & ".txt")
+                    log = "OldLogFile-> " & mApplication & ".Tracer" & DateAndTime.Now.ToString(" ddMMyyyy HHmmss") & ".txt"
+                    writeLog(log, TraceLevels.INFO)
+                    createFile()
+                Else
+                    log = "Can't rename File "
+                    writeLog(log, TraceLevels.INFO)
+                End If
+            Catch ex As Exception
+                log = "Can't rename File " & ex.Message
+                writeLog(log, TraceLevels.ERROR_EXCEPTION)
+            End Try
+        End Sub
+
+        Private Sub checkMaxFiles(ByVal maxFiles As Int16)
+            writeLog(">>>>>>>>> " + MethodInfo.GetCurrentMethod().ToString(), 2)
+            Try
+                Dim fileNames() As String
+                fileNames = Directory.GetFiles(mPath, mApplication & ".Tracer *.txt")
+
+                Dim orderedFiles = New DirectoryInfo(mPath).GetFiles(mApplication & ".Tracer *.txt").OrderBy(Function(x) x.LastWriteTime)
+                For Each f As FileInfo In orderedFiles
+                    Console.WriteLine(String.Format("{0,-15} {1,12}", f.Name, f.CreationTime.ToString))
+                Next
+
+                Dim FilesFound As Int16
+                FilesFound = orderedFiles.Count
+                If FilesFound > maxFiles Then
+                    Dim FilesToDelete As Int16
+                    FilesToDelete = (FilesFound - maxFiles)
+                    writeLog("'Purger' Deleting " & (FilesToDelete + 1) & " Files, MaxFiles Full", 1)
+                    For i = 0 To FilesToDelete
+                        My.Computer.FileSystem.DeleteFile(orderedFiles(i).FullName)
+                        log = "File deleted-> " & orderedFiles(i).Name
+                        writeLog(log, TraceLevels.INFO)
+                    Next
+                End If
+            Catch ex As Exception
+                log = "Something was wrong MaxFiles Full -> " & ex.Message.ToString
+                writeLog(log, TraceLevels.INFO)
+            End Try
+        End Sub
+
+        Private Sub checkMaxSize(ByVal maxfileSize As Long)
+            writeLog(">>>>>>>>> " + MethodInfo.GetCurrentMethod().ToString(), 2)
+            Try
+                If File.Exists(mPath & mApplication & ".Tracer.txt") Then
+                    Dim fileInfo As FileInfo
+                    fileInfo = My.Computer.FileSystem.GetFileInfo(mPath & mApplication & ".Tracer.txt")
+                    Dim x As Long
+                    x = fileInfo.Length
+                    x = x / 1024
+                    If x > maxfileSize Then
+                        writeLog("'Purger' Change File, MaxSize Full", 1)
+                        renameFile()
+                    End If
+                End If
+            Catch ex As Exception
+                writeLog("'Purger' Change File Error -> '" & ex.Message & "'", 1)
+            End Try
+        End Sub
+
+        Private Sub cleanFiles(ByVal keepHistory As Int16)
+            writeLog(">>>>>>>>> " + MethodInfo.GetCurrentMethod().ToString(), 2)
+            log = "LogFileCleanup-> " & mPath & mApplication & ".Tracer.txt"
+            writeLog(log, TraceLevels.INFO)
+            Try
+                Dim fileNames As New Collection
+                For Each file As String In Directory.GetFiles(mPath, mApplication & ".Tracer *.txt") 'My.Application.Info.DirectoryPath.ToString, Application & ".Tracer *.txt")
+                    log = "OldLogFiles-> " & file
+                    writeLog(log, TraceLevels.INFO)
+                    fileNames.Add(file.ToString)
+                Next
+                For Each fileName As String In fileNames
+                    Dim info As New FileInfo(fileName)
+                    Dim infoDate As Date
+                    infoDate = DateAndTime.Now
+                    Dim days As Int32 = 0
+                    days = DateDiff(DateInterval.Day, info.LastWriteTime, DateAndTime.Now)
+                    If days > keepHistory Then
+                        My.Computer.FileSystem.DeleteFile(fileName)
+                        log = "File deleted-> " & fileName.Substring(fileName.LastIndexOf("\") + 1)
+                        writeLog(log, TraceLevels.INFO)
+                    End If
+                Next
+            Catch ex As Exception
+                log = "Can't delete File-> " & ex.Message.ToString
+                writeLog(log, TraceLevels.INFO)
+            End Try
+        End Sub
+#End Region
 
     End Class
 
