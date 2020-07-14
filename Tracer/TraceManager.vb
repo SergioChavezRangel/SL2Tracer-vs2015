@@ -347,11 +347,11 @@ Namespace automation.level2
             If iTraceLevel >= TraceLevel Then
                 Dim msg As String
                 Dim Level As String = "[" & iTraceLevel.ToString() & "]"
-
+                Dim time_stamp As String = DateTime.Now.ToString(mTimeFormat)
                 If mHeader.Length > 0 Then
-                    msg = String.Format("{0} {2,-11} [{1}].[{4}] {3}", DateTime.Now.ToString(mTimeFormat), mApplication, Level, log, mHeader)
+                    msg = String.Format("{0} {2,-11} [{1}].[{4}] {3}", time_stamp, mApplication, Level, log, mHeader)
                 Else
-                    msg = String.Format("{0} {2,-11} [{1}] {3}", DateTime.Now.ToString(mTimeFormat), mApplication, Level, log)
+                    msg = String.Format("{0} {2,-11} [{1}] {3}", time_stamp, mApplication, Level, log)
                 End If
                 'Dim fecha As String = System.DateTime.Now.ToString(LogHeader)
                 Try
