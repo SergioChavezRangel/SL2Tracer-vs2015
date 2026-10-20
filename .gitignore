@@ -240,3 +240,22 @@ ModelManifest.xml
 
 # FAKE - F# Make
 .fake/
+
+# OS specific files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Modern IDEs
+.idea/
+.vscode/
+
+# Tracer logs and test artifacts
+*.Tracer*.txt
+demo_logs/
+*.log
+TestResults/
