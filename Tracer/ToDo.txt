@@ -1,2 +1,12 @@
-﻿* Add sub traceLevel:
-	INFO, WARNING, ERROR, DEBUG, VERBOSE... etc
+Completed (v2.0.0):
+[x] Add sub traceLevel: INFO, WARNING, ERROR, DEBUG, VERBOSE, EXCEPTION, CRITICAL
+[x] Thread-safe logging with file locking and stream synchronization
+[x] Cross-platform path resolution (Windows, macOS, Linux)
+[x] Fix off-by-one bug in max files purging
+[x] Fix invalid integer trace level calls in purger
+[x] Generic IDictionary and nested collection support without runtime crash
+[x] IDisposable implementation for clean timer shutdown
+[x] Upgrade to SDK-style multi-targeting netstandard2.0 and net8.0
+[x] Automated unit and integration tests (xUnit)
+[x] Microsoft.Extensions.Logging provider adapter (SL2Tracer.Extensions.Logging)
+[x] Cross-platform interactive console demo (Tracer.Demo)
